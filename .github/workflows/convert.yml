@@ -78,9 +78,10 @@ jobs:
 
       - name: Convert models
         run: |
-          IFS=',' read -ra resolutions <<< "${{ github.event.inputs.target_resolutions }}"
+          IFS=',' read -ra resolutions <<< "$(echo "${{ github.event.inputs.target_resolutions }}" | tr -d ' ')"
           for res in "${resolutions[@]}"; do
             echo "Converting for resolution: $res"
+
             docker run --rm \
               -v ${{ github.workspace }}/models:/workspace/input_models \
               -v ${{ github.workspace }}/output:/workspace/output_models \
@@ -88,6 +89,11 @@ jobs:
               --model_source /workspace/input_models/input.onnx \
               --resolutions "$res" \
               --input_name "${{ github.event.inputs.input_name }}"
+
+            if [ $? -ne 0 ]; then
+              echo "::error::Conversion failed for resolution $res"
+              exit 1
+            fi
           done
 
       - name: Create release notes
@@ -104,7 +110,7 @@ jobs:
           - Workflow run: [#${{ github.run_number }}](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})
 
           ## Generated Models
-          $(ls -1 output/*.rknn | while read f; do echo "- $(basename \"$f\")"; done)
+          $(ls -1 output/*.rknn | while read f; do echo "- $(basename "$f")"; done)
           EOF
 
       - name: Create Release
