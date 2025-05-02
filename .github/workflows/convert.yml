@@ -39,14 +39,23 @@ jobs:
           password: ${{ secrets.GITHUB_TOKEN }}
 
       # Extract version from git tag if exists, otherwise use 'latest'
-      - name: Get version tag
-        id: version
+      - name: Determine Docker Tag
+        id: docker_tag
         run: |
-          VERSION=$(echo ${{ github.ref }} | sed -e "s/refs\/tags\///g")
-          if [[ $VERSION == "refs/heads/main" || $VERSION == "refs/heads/master" ]]; then
-            VERSION=latest
+          TAG=""
+          if [[ "${{ github.ref }}" == refs/tags/* ]]; then
+            TAG="${{ github.ref_name }}"
+          elif [[ "${{ github.ref_name }}" == "main" || "${{ github.ref_name }}" == "master" ]]; then
+            TAG="latest"
+          else
+            TAG="${{ github.ref_name }}"
           fi
-          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          if [[ -z "$TAG" ]]; then
+            echo "Could not determine Docker tag, using 'unknown'."
+            TAG="unknown"
+          fi
+          echo "Using Docker tag: $TAG"
+          echo "tag=$TAG" >> $GITHUB_OUTPUT
 
       - name: Build and push Docker image
         uses: docker/build-push-action@v5
@@ -54,7 +63,7 @@ jobs:
           context: .
           push: true
           tags: |
-            ghcr.io/${{ github.repository }}/rknn-converter:${{ steps.version.outputs.version }}
+            ghcr.io/${{ github.repository }}/rknn-converter:${{ steps.docker_tag.outputs.tag }}
             ghcr.io/${{ github.repository }}/rknn-converter:latest
           cache-from: type=gha
           cache-to: type=gha,mode=max
