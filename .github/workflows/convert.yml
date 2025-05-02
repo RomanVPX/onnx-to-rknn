@@ -22,7 +22,7 @@ jobs:
       contents: read
       packages: write
     outputs:
-      image_tag: ghcr.io/${{ github.repository }}/rknn-converter:${{ steps.version.outputs.version }}
+      image_tag: ghcr.io/${{ github.repository | toLowerCase }}/rknn-converter:${{ steps.version.outputs.version }}
 
     steps:
       - name: Checkout repository
@@ -63,8 +63,8 @@ jobs:
           context: .
           push: true
           tags: |
-            ghcr.io/${{ github.repository }}/rknn-converter:${{ steps.docker_tag.outputs.tag }}
-            ghcr.io/${{ github.repository }}/rknn-converter:latest
+            ghcr.io/${{ github.repository | toLowerCase }}/rknn-converter:${{ steps.docker_tag.outputs.tag }}
+            ghcr.io/${{ github.repository | toLowerCase }}/rknn-converter:latest
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
