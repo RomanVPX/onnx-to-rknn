@@ -82,41 +82,56 @@ jobs:
       contents: write  # Needed for creating releases
 
     steps:
-      - name: Create work directories
+      - name: Download ONNX model
+        id: download_model
         run: |
           mkdir -p models output
+          cd models
 
-      - name: Download ONNX model
-        run: |
-          curl -L "${{ github.event.inputs.onnx_model_url }}" -o models/input.onnx
-          echo "Downloaded $(ls -lh models/input.onnx | awk '{print $5}')"
+          echo "Downloading from ${{ github.event.inputs.onnx_model_url }}..."
+          curl -L -O "${{ github.event.inputs.onnx_model_url }}"
+          if [ $? -ne 0 ]; then
+            echo "::error::Failed to download ONNX model."
+            exit 1
+          fi
+
+          DOWNLOADED_FILENAME=$(ls *.onnx | head -n 1)
+          if [ -z "$DOWNLOADED_FILENAME" ]; then
+            echo "::error::Could not find downloaded .onnx file in models/ directory."
+            exit 1
+          fi
+
+          echo "Downloaded $(ls -lh "$DOWNLOADED_FILENAME" | awk '{print $5}') as $DOWNLOADED_FILENAME"
+          echo "filename=$DOWNLOADED_FILENAME" >> $GITHUB_OUTPUT
+
+          cd ..
+
 
       - name: Convert models
         run: |
           IFS=',' read -ra resolutions <<< "$(echo "${{ github.event.inputs.target_resolutions }}" | tr -d ' ')"
           for res in "${resolutions[@]}"; do
             echo "Converting for resolution: $res"
-
             docker run --rm \
               -v ${{ github.workspace }}/models:/workspace/input_models \
               -v ${{ github.workspace }}/output:/workspace/output_models \
               ${{ needs.build-and-push.outputs.image_tag }} \
-              --model_source /workspace/input_models/input.onnx \
+              --model_source "/workspace/input_models/${{ steps.download_model.outputs.filename }}" \
               --resolutions "$res" \
               --input_name "${{ github.event.inputs.input_name }}"
-
             if [ $? -ne 0 ]; then
               echo "::error::Conversion failed for resolution $res"
               exit 1
             fi
           done
 
+
       - name: Create release notes
         id: release_notes
         run: |
           cat > release_notes.md << EOF
-          # RKNN Models Release
 
+          # RKNN Models Release
           Converted from: \`$(basename "${{ github.event.inputs.onnx_model_url }}")\`
 
           ## Details
@@ -127,6 +142,7 @@ jobs:
           ## Generated Models
           $(ls -1 output/*.rknn | while read f; do echo "- $(basename "$f")"; done)
           EOF
+
 
       - name: Create Release
         uses: softprops/action-gh-release@v2
