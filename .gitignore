@@ -1,0 +1,29 @@
+# Model files
+*.onnx
+*.rknn
+
+# System files
+.DS_Store
+._.DS_Store
+._*
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+.Python
+.env
+.venv
+env/
+venv/
+ENV/
+*.so
+
+#Cline
+memory-bank
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo

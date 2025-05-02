@@ -1,0 +1,37 @@
+services:
+  model-converter:
+    container_name: onnx-to-rknn-dfp16
+    build:
+      context: .
+      dockerfile: Dockerfile
+
+    # Имя образа
+    # image: onnx-to-rknn
+
+    # Рабочая директория
+    working_dir: /workspace
+
+    # Монтируем папки
+    volumes:
+      - ./input_models:/workspace/input_models
+      - ./output_models:/workspace/output_models
+
+    # Зашиваем команду прямо сюда
+    # Замени пути и имя входа на твои реальные
+    command: >
+      python convert.py
+        /workspace/input_models/Real-ESRGAN_x2plus.onnx
+        /workspace/output_models/Real-ESRGAN-x2plus_dfp16.rknn
+      --input_name input
+
+# --- Как использовать ---
+# 1. Собери образ (если еще не собран или изменился Dockerfile):
+#    DOCKER_BUILDKIT=1 docker build -t onnx-to-rknn-dfp16 .
+#
+# 2. Запусти конвертацию командой:
+#    docker-compose up --build
+#    (Опция --build пересоберёт образ, если convert.py изменился)
+#    (Без -d, чтобы видеть логи конвертации в терминале)
+#
+# 3. После завершения останови контейнер:
+#    docker-compose down
