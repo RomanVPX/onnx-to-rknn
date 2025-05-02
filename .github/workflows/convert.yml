@@ -71,8 +71,8 @@ jobs:
           tags: |
             ghcr.io/${{ steps.prep.outputs.repo_lc }}/rknn-converter:${{ steps.docker_tag.outputs.tag }}
             ghcr.io/${{ steps.prep.outputs.repo_lc }}/rknn-converter:latest
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+          cache-from: type=registry,ref=ghcr.io/${{ steps.prep.outputs.repo_lc }}/rknn-converter:${{ steps.docker_tag.outputs.tag }}-cache
+          cache-to: type=registry,ref=ghcr.io/${{ steps.prep.outputs.repo_lc }}/rknn-converter:${{ steps.docker_tag.outputs.tag }}-cache,mode=max
 
   convert:
     name: Convert Models
