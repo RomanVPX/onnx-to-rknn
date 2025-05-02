@@ -1,37 +1,64 @@
+# Docker Compose config for local ONNX -> RKNN conversion
+# Uses the same image as the GitHub Actions workflow
+
 services:
   model-converter:
-    container_name: onnx-to-rknn-dfp16
-    build:
-      context: .
-      dockerfile: Dockerfile
-
-    # Имя образа
-    # image: onnx-to-rknn
-
-    # Рабочая директория
+    container_name: rknn-converter
+    # Using image from GitHub Container Registry
+    image: ghcr.io/romanvpx/rknn-converter:latest
     working_dir: /workspace
 
-    # Монтируем папки
+    # Mount directories for input and output models
     volumes:
       - ./input_models:/workspace/input_models
       - ./output_models:/workspace/output_models
 
-    # Зашиваем команду прямо сюда
-    # Замени пути и имя входа на твои реальные
+    # Example conversion command
+    # Replace parameters with your own:
+    #  - model.onnx with your model name
+    #  - resolutions with your required resolutions
+    #  - input_name _must_ match the input tensor name in source model
     command: >
-      python convert.py
-        /workspace/input_models/Real-ESRGAN_x2plus.onnx
-        /workspace/output_models/Real-ESRGAN-x2plus_dfp16.rknn
+      --model_source /workspace/input_models/model.onnx
+      --resolutions 1440x384,1536x512
       --input_name input
 
-# --- Как использовать ---
-# 1. Собери образ (если еще не собран или изменился Dockerfile):
-#    DOCKER_BUILDKIT=1 docker build -t onnx-to-rknn-dfp16 .
+# --- How to use ---
+
+# 1. For a local ONNX file:
+#    - Place your ONNX model in ./input_models/
+#    - Change model.onnx to your model name in command:
+#      --model_source /workspace/input_models/my_model.onnx
+#    - Run: docker-compose up
+
+# 2. For downloading from URL:
+#    - Specify URL in model_source:
+#      --model_source https://example.com/model.onnx
+#    - Run: docker-compose up
+#    (The script will download the model automatically)
+
+# 3. Command examples:
 #
-# 2. Запусти конвертацию командой:
-#    docker-compose up --build
-#    (Опция --build пересоберёт образ, если convert.py изменился)
-#    (Без -d, чтобы видеть логи конвертации в терминале)
+#    # Real-ESRGAN x4 (1440p)
+#    command: >
+#      --model_source https://huggingface.co/qualcomm/Real-ESRGAN-x4plus/resolve/main/Real-ESRGAN-x4plus.onnx
+#      --resolutions 1440x320,1440x384,1440x404
+#      --input_name input
 #
-# 3. После завершения останови контейнер:
-#    docker-compose down
+#    # Real-ESRGAN x2 (1536p)
+#    command: >
+#      --model_source /workspace/input_models/Real-ESRGAN_x2plus.onnx
+#      --resolutions 1536x448,1536x512,1536x576
+#      --input_name input
+
+# 4. Results:
+#    - Converted models will appear in ./output_models/
+#    - Names will include the resolution: model_w16a16i_dfp_WxH.rknn
+
+# Note:
+# If you need to use an image from a private registry, add:
+#
+#    image: ghcr.io/your-username/rknn-converter:latest
+#    credentials:
+#      username: ${GITHUB_USER}
+#      password: ${GITHUB_TOKEN}

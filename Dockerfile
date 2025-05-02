@@ -1,6 +1,6 @@
 FROM python:3.11-slim
 
-# 1) Системные зависимости (кэшируются)
+# 1) System dependencies
 RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential \
     cmake \
@@ -8,7 +8,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libjpeg-dev libpng-dev libopencv-dev \
   && rm -rf /var/lib/apt/lists/*
 
-# 2) Python-пакеты (кэшируются)
+# 2) Python packages
 RUN pip install --no-cache-dir \
     numpy==1.26.4 \
     pillow==11.0.0 \
@@ -16,11 +16,11 @@ RUN pip install --no-cache-dir \
     rknn-toolkit2==2.3.0 \
     requests
 
-# 3) Рабочая директория
+# 3) Workspace
 WORKDIR /workspace
 
-# 4) Копируем скрипт
+# 4) Scripts
 COPY scripts/convert.py .
 
-# 5) Точка входа
+# 5) Entry point
 ENTRYPOINT ["python", "convert.py"]
