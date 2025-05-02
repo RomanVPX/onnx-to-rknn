@@ -1,0 +1,124 @@
+name: ONNX to RKNN Conversion
+
+on:
+  workflow_dispatch:
+    inputs:
+      onnx_model_url:
+        description: 'URL of ONNX model to convert'
+        required: true
+      target_resolutions:
+        description: 'Comma-separated list of target resolutions (e.g., 1280x256,1440x384)'
+        required: true
+      input_name:
+        description: 'Model input tensor name'
+        default: 'input'
+        required: false
+
+jobs:
+  build-and-push:
+    name: Build and Push Docker Image
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    outputs:
+      image_tag: ghcr.io/${{ github.repository }}/rknn-converter:${{ steps.version.outputs.version }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      # Extract version from git tag if exists, otherwise use 'latest'
+      - name: Get version tag
+        id: version
+        run: |
+          VERSION=$(echo ${{ github.ref }} | sed -e "s/refs\/tags\///g")
+          if [[ $VERSION == "refs/heads/main" || $VERSION == "refs/heads/master" ]]; then
+            VERSION=latest
+          fi
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          push: true
+          tags: |
+            ghcr.io/${{ github.repository }}/rknn-converter:${{ steps.version.outputs.version }}
+            ghcr.io/${{ github.repository }}/rknn-converter:latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  convert:
+    name: Convert Models
+    needs: build-and-push
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write  # Needed for creating releases
+
+    steps:
+      - name: Create work directories
+        run: |
+          mkdir -p models output
+
+      - name: Download ONNX model
+        run: |
+          curl -L "${{ github.event.inputs.onnx_model_url }}" -o models/input.onnx
+          echo "Downloaded $(ls -lh models/input.onnx | awk '{print $5}')"
+
+      - name: Convert models
+        run: |
+          IFS=',' read -ra resolutions <<< "$(echo "${{ github.event.inputs.target_resolutions }}" | tr -d ' ')"
+          for res in "${resolutions[@]}"; do
+            echo "Converting for resolution: $res"
+
+            docker run --rm \
+              -v ${{ github.workspace }}/models:/workspace/input_models \
+              -v ${{ github.workspace }}/output:/workspace/output_models \
+              ${{ needs.build-and-push.outputs.image_tag }} \
+              --model_source /workspace/input_models/input.onnx \
+              --resolutions "$res" \
+              --input_name "${{ github.event.inputs.input_name }}"
+
+            if [ $? -ne 0 ]; then
+              echo "::error::Conversion failed for resolution $res"
+              exit 1
+            fi
+          done
+
+      - name: Create release notes
+        id: release_notes
+        run: |
+          cat > release_notes.md << EOF
+          # RKNN Models Release
+
+          Converted from: \`$(basename "${{ github.event.inputs.onnx_model_url }}")\`
+
+          ## Details
+          - Input tensor name: \`${{ github.event.inputs.input_name }}\`
+          - Target resolutions: \`${{ github.event.inputs.target_resolutions }}\`
+          - Workflow run: [#${{ github.run_number }}](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})
+
+          ## Generated Models
+          $(ls -1 output/*.rknn | while read f; do echo "- $(basename "$f")"; done)
+          EOF
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: models-${{ github.run_id }}
+          name: "Models from ${{ github.event.inputs.onnx_model_url }}"
+          body_path: release_notes.md
+          files: output/*.rknn
+          draft: false
+          prerelease: false
