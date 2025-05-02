@@ -22,7 +22,7 @@ jobs:
       contents: read
       packages: write
     outputs:
-      image_tag: ghcr.io/${{ github.repository.toLowerCase }}/rknn-converter:${{ steps.version.outputs.version }}
+      image_tag: ghcr.io/${{ github.repository.toLowerCase }}/rknn-converter:${{ steps.docker_tag.outputs.tag }}
 
     steps:
       - name: Checkout repository
@@ -58,7 +58,7 @@ jobs:
           echo "tag=$TAG" >> $GITHUB_OUTPUT
 
       - name: Build and push Docker image
-        uses: docker/build-push-action@v5
+        uses: docker/build-push-action@v6
         with:
           context: .
           push: true
@@ -123,7 +123,7 @@ jobs:
           EOF
 
       - name: Create Release
-        uses: softprops/action-gh-release@v1
+        uses: softprops/action-gh-release@v2
         with:
           tag_name: models-${{ github.run_id }}
           name: "Models from ${{ github.event.inputs.onnx_model_url }}"
