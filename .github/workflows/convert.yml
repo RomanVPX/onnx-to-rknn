@@ -13,7 +13,7 @@ on:
         type: choice
         required: true
         description: 'Target platform for conversion'
-        default: 'rk3566'
+        default: 'RK3566'
         options:
           - RV1103
           - RV1103b
@@ -23,7 +23,6 @@ on:
           - RK2118
           - RK3562
           - RK3566
-          - RK3588
           - RK3576
           - RK3588
       release_tag:
@@ -195,7 +194,6 @@ jobs:
         id: release_notes
         run: |
           cat > release_notes.md << EOF
-          # RKNN Models
           Original ONNX model: [${{ needs.prepare.outputs.model_filename }}](${{ github.event.inputs.onnx_model_url }})
 
           ## Details
