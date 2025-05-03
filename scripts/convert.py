@@ -10,17 +10,23 @@ import logging
 # --- Configuration ---
 INPUT_DIR = "/workspace/input_models"
 OUTPUT_DIR = "/workspace/output_models"
-DEFAULT_QUANT_DTYPE = "w16a16i_dfp"
+# "w8a8","w4a16", "w8a16", "w4a8", "w16a16i" and "w16a16i_dfp" — Rockchip documentation
+# w16a16i_dfp(*), w16a16i(*), w8a8 — works with rk3566
+# (*) — not supported by rk3566 according to Rockchip documentation, but works in practice
+# w4a16, w8a16 — not supported by rk3566, like really not supported
+# w4a8 — exists only in documentation, not in rknn api
+# w8a16 is forced when `quantize_weight` (which is "about to be deprecated") is set to True
+DEFAULT_QUANT_DTYPE = "w8a8"
 
 # Default shapes (Width, Height) if --resolutions is not provided
 # Extracted from the original DYNAMIC_INPUTS list
 DEFAULT_SHAPES = [
-    (1440, 404),
-    (1440, 384),
     (1440, 320),
-    (1536, 576),
-    (1536, 512),
+    (1440, 384),
+    (1440, 404),
     (1536, 448),
+    (1536, 512),
+    (1536, 576),
 ]
 
 logging.basicConfig(level=logging.INFO, format='%(levelname)s: %(message)s')
@@ -161,7 +167,7 @@ def main():
             rknn.config(
                 target_platform="rk3566",
                 quantized_dtype=quant_dtype,
-                optimization_level=2,
+                optimization_level=2
             )
             # Config doesn't return a useful value to check
 
@@ -176,7 +182,7 @@ def main():
             logging.info("ONNX model loaded successfully.")
 
             logging.info("[3/4] Building RKNN model...")
-            ret = rknn.build(do_quantization=False) # Keep False as discussed
+            ret = rknn.build(do_quantization=False)
             if ret != 0:
                 raise RuntimeError(f"RKNN build failed with code {ret}")
             logging.info("RKNN model built successfully.")
@@ -195,7 +201,6 @@ def main():
             logging.error(f"❌ FAILED to convert shape {shape_str}: {e}")
             errors_occurred = True
             # Continue to the next shape
-
         finally:
             if rknn:
                 rknn.release()
