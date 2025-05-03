@@ -4,8 +4,11 @@
 services:
   model-converter:
     container_name: rknn-converter
-    # Using image from GitHub Container Registry
-    image: ghcr.io/romanvpx/rknn-converter:latest
+
+    build:
+      context: .
+      dockerfile: Dockerfile
+
     working_dir: /workspace
 
     # Mount directories for input and output models
@@ -14,21 +17,21 @@ services:
       - ./output_models:/workspace/output_models
 
     # Example conversion command
-    # Replace parameters with your own:
-    #  - model.onnx with your model name
-    #  - resolutions with your required resolutions
-    #  - input_name _must_ match the input tensor name in source model
+    # Add/replace parameters with your own:
+    #  --model_source: model URL or local fiile name (should be in ./input_models/)
+    #  --resolutions: with your required resolutions (hardcoded defaults are used if not specified)
+    #  --target_platform: platform to convert for (default: rk3566)
+    #  --verbose or -v: for detailed logs
     command: >
-      --model_source /workspace/input_models/model.onnx
-      --resolutions 1440x384,1536x512
-      --input_name input
+      --model_source Real-ESRGAN-x2plus.onnx
+      -v
 
 # --- How to use ---
 
 # 1. For a local ONNX file:
 #    - Place your ONNX model in ./input_models/
 #    - Change model.onnx to your model name in command:
-#      --model_source /workspace/input_models/my_model.onnx
+#      --model_source my_model.onnx
 #    - Run: docker-compose up
 
 # 2. For downloading from URL:
@@ -43,17 +46,15 @@ services:
 #    command: >
 #      --model_source https://huggingface.co/qualcomm/Real-ESRGAN-x4plus/resolve/main/Real-ESRGAN-x4plus.onnx
 #      --resolutions 1440x320,1440x384,1440x404
-#      --input_name input
 #
 #    # Real-ESRGAN x2 (1536p)
 #    command: >
-#      --model_source /workspace/input_models/Real-ESRGAN_x2plus.onnx
+#      --model_source Real-ESRGAN_x2plus.onnx
 #      --resolutions 1536x448,1536x512,1536x576
-#      --input_name input
 
 # 4. Results:
 #    - Converted models will appear in ./output_models/
-#    - Names will include the resolution: model_w16a16i_dfp_WxH.rknn
+#    - Names will include the resolution: model_dfp_WxH.rknn
 
 # Note:
 # If you need to use an image from a private registry, add:
