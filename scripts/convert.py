@@ -144,8 +144,9 @@ def main():
 
     # 0. Validate target platform
     logging.info(f"Target platform: {args.target_platform}")
-    if args.target_platform.lower() not in TARGET_PLATFORMS:
-        logging.error(f"Invalid target platform '{args.target_platform}'. Supported platforms: {TARGET_PLATFORMS}.")
+    target_platform = args.target_platform.lower()
+    if target_platform not in TARGET_PLATFORMS:
+        logging.error(f"Invalid target platform '{target_platform}'. Supported platforms: {TARGET_PLATFORMS}.")
         sys.exit(1)
 
     # 1. Determine and prepare ONNX model path
@@ -202,7 +203,7 @@ def main():
 
             logging.info("[1/4] Configuring RKNN...")
             rknn.config(
-                target_platform=args.target_platform,
+                target_platform=target_platform,
                 quantized_dtype=quant_dtype,
                 optimization_level=2
             )
