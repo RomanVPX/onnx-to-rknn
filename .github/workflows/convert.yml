@@ -17,6 +17,7 @@ on:
         description: 'Maximum parallel conversions'
         default: '4'
         required: false
+        type: number
 
 env:
   REGISTRY: ghcr.io
@@ -105,10 +106,9 @@ jobs:
       - name: Create matrix
         id: set-matrix
         run: |
-          # Преобразуем список резолюций в JSON массив для matrix
+          # Преобразуем список резолюций в правильный формат matrix
           MATRIX=$(echo "${{ github.event.inputs.target_resolutions }}" | \
-                  tr ',' '\n' | \
-                  jq -R -s -c 'split("\n")[:-1] | map({"resolution":.})')
+                  jq -R -c 'split(",") | {"include": map({"resolution": .})}')
           echo "matrix=$MATRIX" >> $GITHUB_OUTPUT
 
   convert:
@@ -117,9 +117,8 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix: ${{ fromJSON(needs.prepare.outputs.matrix) }}
-      # Разрешаем падение отдельных jobs
       fail-fast: false
-      max-parallel: ${{ fromJSON(github.event.inputs.max_parallel) }}
+      max-parallel: ${{ inputs.max_parallel }}
     permissions:
       packages: read
     steps:
