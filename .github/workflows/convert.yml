@@ -10,9 +10,22 @@ on:
         description: 'Comma-separated list of target resolutions (e.g., 1280x256,1440x384)'
         required: true
       target_platform:
-        description: 'Target platform (e.g., rk3588, rv1126b)'
+        type: choice
+        required: true
+        description: 'Target platform for conversion'
         default: 'rk3566'
-        required: false
+        options:
+          - rv1103
+          - rv1103b
+          - rv1106
+          - rv1106b
+          - rv1126b
+          - rk2118
+          - rk3562
+          - rk3566
+          - rk3588
+          - rk3576
+          - rk3588
       release_tag:
         description: 'Custom release tag (e.g. v1.0)'
         required: false
