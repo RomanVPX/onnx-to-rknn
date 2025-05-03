@@ -177,7 +177,8 @@ def main():
         parsed_shapes = parse_resolutions(args.resolutions)
         if parsed_shapes:
             target_shapes = parsed_shapes
-            logging.info(f"Using provided resolutions: {target_shapes}")
+            shape_count = len(target_shapes)
+            logging.info(f"Using provided {shape_count} {'resolution' if shape_count == 1 else 'resolutions'}: {target_shapes}")
         else:
             sys.exit(1) # Exit if parsing failed
     else:
@@ -192,7 +193,7 @@ def main():
 
     # 6. Conversion loop
     quant_dtype = DEFAULT_QUANT_DTYPE # Doeesn't affect when do_quantization=False
-    logging.info(f"Starting conversion for {len(target_shapes)} shapes...")
+    logging.info(f"Starting conversion for {len(target_shapes)} {'shape' if len(target_shapes) == 1 else 'shapes'}...")
 
     for width, height in target_shapes:
         rknn = None
