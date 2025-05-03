@@ -15,17 +15,17 @@ on:
         description: 'Target platform for conversion'
         default: 'rk3566'
         options:
-          - rv1103
-          - rv1103b
-          - rv1106
-          - rv1106b
-          - rv1126b
-          - rk2118
-          - rk3562
-          - rk3566
-          - rk3588
-          - rk3576
-          - rk3588
+          - RV1103
+          - RV1103b
+          - RV1106
+          - RV1106b
+          - RV1126b
+          - RK2118
+          - RK3562
+          - RK3566
+          - RK3588
+          - RK3576
+          - RK3588
       release_tag:
         description: 'Custom release tag (e.g. v1.0)'
         required: false
@@ -211,7 +211,7 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ github.event.inputs.release_tag || format('models-{0}', github.run_id) }}
-          name: ${{ github.event.inputs.release_name || format('RKNN models from {0}', needs.prepare.outputs.model_filename) }}
+          name: ${{ github.event.inputs.release_name || format('{0} for {1}', needs.prepare.outputs.model_filename, github.event.inputs.target_platform) }}
           body_path: release_notes.md
           files: output/**/*.rknn
           draft: ${{ github.event.inputs.release_draft }}
