@@ -13,6 +13,16 @@ on:
         description: 'Model input tensor name'
         default: 'input'
         required: false
+      release_tag:
+        description: 'Custom release tag (e.g. v1.0)'
+        required: false
+      release_name:
+        description: 'Custom release name'
+        required: false
+      release_draft:
+        description: 'Create as draft release'
+        type: boolean
+        default: false
 
 env:
   REGISTRY: ghcr.io
@@ -187,9 +197,9 @@ jobs:
       - name: Create Release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: models-${{ github.run_id }}
-          name: "RKNN models from ${{ needs.prepare.outputs.model_filename }}"
+          tag_name: ${{ github.event.inputs.release_tag || format('models-{0}', github.run_id) }}
+          name: ${{ github.event.inputs.release_name || format('RKNN models from {0}', needs.prepare.outputs.model_filename) }}
           body_path: release_notes.md
           files: output/**/*.rknn
-          draft: false
+          draft: ${{ github.event.inputs.release_draft }}
           prerelease: false
