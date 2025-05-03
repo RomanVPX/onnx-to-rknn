@@ -145,7 +145,7 @@ def main():
     # 0. Validate target platform
     logging.info(f"Target platform: {args.target_platform}")
     target_platform = args.target_platform.lower()
-    if target_platform not in TARGET_PLATFORMS:
+    if target_platform not in {p.lower() for p in TARGET_PLATFORMS}:
         logging.error(f"Invalid target platform '{target_platform}'. Supported platforms: {TARGET_PLATFORMS}.")
         sys.exit(1)
 
