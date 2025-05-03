@@ -17,7 +17,6 @@ on:
         description: 'Maximum parallel conversions'
         default: '4'
         required: false
-        type: number
 
 env:
   REGISTRY: ghcr.io
@@ -118,7 +117,7 @@ jobs:
     strategy:
       matrix: ${{ fromJSON(needs.prepare.outputs.matrix) }}
       fail-fast: false
-      max-parallel: ${{ inputs.max_parallel }}
+      max-parallel: ${{ github.event.inputs.max_parallel }}
     permissions:
       packages: read
     steps:
