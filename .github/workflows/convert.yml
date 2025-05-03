@@ -14,6 +14,10 @@ on:
         default: 'input'
         required: false
 
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}
+
 jobs:
   build-and-push:
     name: Build and Push Docker Image
@@ -22,17 +26,10 @@ jobs:
       contents: read
       packages: write
     outputs:
-      image_tag: ghcr.io/${{ steps.prep.outputs.repo_lc }}/rknn-converter:${{ steps.docker_tag.outputs.tag }}
-
+      image_tag: ${{ steps.meta.outputs.tags }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
-
-      - name: Prepare repo name
-        id: prep
-        run: |
-          REPO_LC=$(echo "${{ github.repository }}" | tr '[:upper:]' '[:lower:]')
-          echo "repo_lc=$REPO_LC" >> $GITHUB_OUTPUT
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
@@ -40,39 +37,30 @@ jobs:
       - name: Log in to GitHub Container Registry
         uses: docker/login-action@v3
         with:
-          registry: ghcr.io
+          registry: ${{ env.REGISTRY }}
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      # Extract version from git tag if exists, otherwise use 'latest'
-      - name: Determine Docker Tag
-        id: docker_tag
-        run: |
-          TAG=""
-          if [[ "${{ github.ref }}" == refs/tags/* ]]; then
-            TAG="${{ github.ref_name }}"
-          elif [[ "${{ github.ref_name }}" == "main" || "${{ github.ref_name }}" == "master" ]]; then
-            TAG="latest"
-          else
-            TAG="${{ github.ref_name }}"
-          fi
-          if [[ -z "$TAG" ]]; then
-            echo "Could not determine Docker tag, using 'unknown'."
-            TAG="unknown"
-          fi
-          echo "Using Docker tag: $TAG"
-          echo "tag=$TAG" >> $GITHUB_OUTPUT
+      - name: Extract Docker metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/rknn-converter
+          tags: |
+            type=ref,event=branch,enable=true,prefix=,suffix=
+            type=ref,event=tag,enable=true
+            type=raw,value=latest,enable=${{ github.ref == github.event.repository.default_branch }}
 
       - name: Build and push Docker image
         uses: docker/build-push-action@v6
         with:
           context: .
           push: true
-          tags: |
-            ghcr.io/${{ steps.prep.outputs.repo_lc }}/rknn-converter:${{ steps.docker_tag.outputs.tag }}
-            ghcr.io/${{ steps.prep.outputs.repo_lc }}/rknn-converter:latest
-          cache-from: type=registry,ref=ghcr.io/${{ steps.prep.outputs.repo_lc }}/rknn-converter:${{ steps.docker_tag.outputs.tag }}-cache
-          cache-to: type=registry,ref=ghcr.io/${{ steps.prep.outputs.repo_lc }}/rknn-converter:${{ steps.docker_tag.outputs.tag }}-cache,mode=max
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=registry,ref=${{ steps.meta.outputs.tags }}-cache
+          cache-to: type=registry,ref=${{ steps.meta.outputs.tags }}-cache,mode=max
+
 
   convert:
     name: Convert Models
@@ -80,14 +68,20 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: write  # Needed for creating releases
-
+      packages: read       # ⬅ allow pulling ghcr.io image
     steps:
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
       - name: Download ONNX model
         id: download_model
         run: |
           mkdir -p models output
           cd models
-
           echo "Downloading from ${{ github.event.inputs.onnx_model_url }}..."
           curl -L -O "${{ github.event.inputs.onnx_model_url }}"
           if [ $? -ne 0 ]; then
@@ -103,19 +97,21 @@ jobs:
 
           echo "Downloaded $(ls -lh "$DOWNLOADED_FILENAME" | awk '{print $5}') as $DOWNLOADED_FILENAME"
           echo "filename=$DOWNLOADED_FILENAME" >> $GITHUB_OUTPUT
-
           cd ..
-
 
       - name: Convert models
         run: |
+          IMAGE_TAGS="${{ needs.build-and-push.outputs.image_tag }}"
+          FIRST_TAG=$(echo "$IMAGE_TAGS" | head -n 1)
+          echo "Using image tag: $FIRST_TAG"
+
           IFS=',' read -ra resolutions <<< "$(echo "${{ github.event.inputs.target_resolutions }}" | tr -d ' ')"
           for res in "${resolutions[@]}"; do
             echo "Converting for resolution: $res"
             docker run --rm \
               -v ${{ github.workspace }}/models:/workspace/input_models \
               -v ${{ github.workspace }}/output:/workspace/output_models \
-              ${{ needs.build-and-push.outputs.image_tag }} \
+              "$FIRST_TAG" \
               --model_source "/workspace/input_models/${{ steps.download_model.outputs.filename }}" \
               --resolutions "$res" \
               --input_name "${{ github.event.inputs.input_name }}"
@@ -125,14 +121,13 @@ jobs:
             fi
           done
 
-
       - name: Create release notes
         id: release_notes
         run: |
           cat > release_notes.md << EOF
 
-          # RKNN Models Release
-          Converted from: \`$(basename "${{ github.event.inputs.onnx_model_url }}")\`
+          # RKNN Models
+          Original ONNX model: [${{ steps.download_model.outputs.filename }}](${{ github.event.inputs.onnx_model_url }})
 
           ## Details
           - Input tensor name: \`${{ github.event.inputs.input_name }}\`
@@ -148,7 +143,7 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           tag_name: models-${{ github.run_id }}
-          name: "Models from ${{ github.event.inputs.onnx_model_url }}"
+          name: "RKNN models from ${{ steps.download_model.outputs.filename }}"
           body_path: release_notes.md
           files: output/*.rknn
           draft: false
