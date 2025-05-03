@@ -17,6 +17,7 @@ on:
 env:
   REGISTRY: ghcr.io
   IMAGE_NAME: ${{ github.repository }}
+  ARTIFACTS_NAME: rknn-models
 
 jobs:
   build-and-push:
@@ -34,7 +35,7 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
-      - name: Log in to GitHub Container Registry
+      - name: Log in to Container Registry
         uses: docker/login-action@v3
         with:
           registry: ${{ env.REGISTRY }}
@@ -61,26 +62,18 @@ jobs:
           cache-from: type=registry,ref=${{ steps.meta.outputs.tags }}-cache
           cache-to: type=registry,ref=${{ steps.meta.outputs.tags }}-cache,mode=max
 
-
-  convert:
-    name: Convert Models
+  prepare:
+    name: Prepare Matrix
     needs: build-and-push
     runs-on: ubuntu-latest
-    permissions:
-      contents: write  # Needed for creating releases
-      packages: read       # ⬅ allow pulling ghcr.io image
+    outputs:
+      matrix: ${{ steps.set-matrix.outputs.matrix }}
+      model_filename: ${{ steps.download-model.outputs.filename }}
     steps:
-      - name: Log in to GitHub Container Registry
-        uses: docker/login-action@v3
-        with:
-          registry: ${{ env.REGISTRY }}
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-
       - name: Download ONNX model
-        id: download_model
+        id: download-model
         run: |
-          mkdir -p models output
+          mkdir -p models
           cd models
           echo "Downloading from ${{ github.event.inputs.onnx_model_url }}..."
           curl -L -O "${{ github.event.inputs.onnx_model_url }}"
@@ -97,37 +90,90 @@ jobs:
 
           echo "Downloaded $(ls -lh "$DOWNLOADED_FILENAME" | awk '{print $5}') as $DOWNLOADED_FILENAME"
           echo "filename=$DOWNLOADED_FILENAME" >> $GITHUB_OUTPUT
-          cd ..
 
-      - name: Convert models
+      - name: Upload ONNX model
+        uses: actions/upload-artifact@v4
+        with:
+          name: onnx-model
+          path: models/*.onnx
+          retention-days: 1
+
+      - name: Create matrix
+        id: set-matrix
         run: |
+          MATRIX=$(echo "${{ github.event.inputs.target_resolutions }}" | \
+                  jq -R -c 'split(",") | {"include": map({"resolution": .})}')
+          echo "matrix=$MATRIX" >> $GITHUB_OUTPUT
+
+  convert:
+    name: Convert for ${{ matrix.resolution }}
+    needs: [build-and-push, prepare]
+    runs-on: ubuntu-latest
+    strategy:
+      matrix: ${{ fromJSON(needs.prepare.outputs.matrix) }}
+      fail-fast: false
+      max-parallel: 8
+    permissions:
+      packages: read
+    steps:
+      - name: Log in to Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Download ONNX model
+        uses: actions/download-artifact@v4
+        with:
+          name: onnx-model
+          path: models
+
+      - name: Convert model
+        id: convert
+        run: |
+          mkdir -p output/${{ matrix.resolution }}
+
           IMAGE_TAGS="${{ needs.build-and-push.outputs.image_tag }}"
           FIRST_TAG=$(echo "$IMAGE_TAGS" | head -n 1)
           echo "Using image tag: $FIRST_TAG"
 
-          IFS=',' read -ra resolutions <<< "$(echo "${{ github.event.inputs.target_resolutions }}" | tr -d ' ')"
-          for res in "${resolutions[@]}"; do
-            echo "Converting for resolution: $res"
-            docker run --rm \
-              -v ${{ github.workspace }}/models:/workspace/input_models \
-              -v ${{ github.workspace }}/output:/workspace/output_models \
-              "$FIRST_TAG" \
-              --model_source "/workspace/input_models/${{ steps.download_model.outputs.filename }}" \
-              --resolutions "$res" \
-              --input_name "${{ github.event.inputs.input_name }}"
-            if [ $? -ne 0 ]; then
-              echo "::error::Conversion failed for resolution $res"
-              exit 1
-            fi
-          done
+          echo "Converting for resolution: ${{ matrix.resolution }}"
+          docker run --rm \
+            -v ${{ github.workspace }}/models:/workspace/input_models \
+            -v ${{ github.workspace }}/output/${{ matrix.resolution }}:/workspace/output_models \
+            "$FIRST_TAG" \
+            --model_source "/workspace/input_models/${{ needs.prepare.outputs.model_filename }}" \
+            --resolutions "${{ matrix.resolution }}" \
+            --input_name "${{ github.event.inputs.input_name }}"
+
+      - name: Upload converted model
+        uses: actions/upload-artifact@v4
+        with:
+          name: rknn-model-${{ matrix.resolution }}
+          path: output/${{ matrix.resolution }}/*.rknn
+          retention-days: 1
+
+  release:
+    name: Create Release
+    needs: [prepare, convert]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Download all models
+        uses: actions/download-artifact@v4
+        with:
+          pattern: rknn-model-*
+          path: output
+          merge-multiple: true
 
       - name: Create release notes
         id: release_notes
         run: |
           cat > release_notes.md << EOF
-
           # RKNN Models
-          Original ONNX model: [${{ steps.download_model.outputs.filename }}](${{ github.event.inputs.onnx_model_url }})
+          Original ONNX model: [${{ needs.prepare.outputs.model_filename }}](${{ github.event.inputs.onnx_model_url }})
 
           ## Details
           - Input tensor name: \`${{ github.event.inputs.input_name }}\`
@@ -135,16 +181,15 @@ jobs:
           - Workflow run: [#${{ github.run_number }}](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})
 
           ## Generated Models
-          $(ls -1 output/*.rknn | while read f; do echo "- $(basename "$f")"; done)
+          $(find output -type f -name "*.rknn" | sort | while read f; do echo "- $(basename "$f")"; done)
           EOF
-
 
       - name: Create Release
         uses: softprops/action-gh-release@v2
         with:
           tag_name: models-${{ github.run_id }}
-          name: "RKNN models from ${{ steps.download_model.outputs.filename }}"
+          name: "RKNN models from ${{ needs.prepare.outputs.model_filename }}"
           body_path: release_notes.md
-          files: output/*.rknn
+          files: output/**/*.rknn
           draft: false
           prerelease: false
