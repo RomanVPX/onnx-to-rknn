@@ -94,16 +94,16 @@ docker-compose up
 
 ## Example Usage
 
-Convert Real-ESRGAN x2 model:
+Convert Real-ESRGAN-x4plus model:
 ```bash
 # Via GitHub Actions:
-URL: https://huggingface.co/ai-forever/Real-ESRGAN/resolve/main/RealESRGAN_x2plus.onnx
-Resolutions: 1440x320,1440x384
+URL: https://huggingface.co/qualcomm/Real-ESRGAN-x4plus/blob/main/Real-ESRGAN-x4plus.onnx
+Resolutions: 1440x320,1440x384,512x512
 Input name: input
 
 # Via Docker:
 docker run --rm -v ./input_models:/workspace/input_models \
               -v ./output_models:/workspace/output_models \
               ghcr.io/OWNER/REPO/rknn-converter:latest \
-              --model_source https://huggingface.co/.../RealESRGAN_x2plus.onnx \
+              --model_source https://huggingface.co/qualcomm/Real-ESRGAN-x4plus/blob/main/Real-ESRGAN-x4plus.onnx \
               --resolutions 1440x320,1440x384
