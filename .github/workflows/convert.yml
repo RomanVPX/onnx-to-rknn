@@ -150,8 +150,8 @@ jobs:
       - name: Upload converted model
         uses: actions/upload-artifact@v4
         with:
-          name: ${{ env.ARTIFACTS_NAME }}
-          path: output/${{ matrix.resolution }}
+          name: rknn-model-${{ matrix.resolution }}
+          path: output/${{ matrix.resolution }}/*.rknn
           retention-days: 1
 
   release:
@@ -164,8 +164,9 @@ jobs:
       - name: Download all models
         uses: actions/download-artifact@v4
         with:
-          name: ${{ env.ARTIFACTS_NAME }}
+          pattern: rknn-model-*
           path: output
+          merge-multiple: true
 
       - name: Create release notes
         id: release_notes
