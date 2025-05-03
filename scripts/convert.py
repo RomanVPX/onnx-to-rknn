@@ -21,10 +21,10 @@ OUTPUT_DIR = "/workspace/output_models"
 DEFAULT_QUANT_DTYPE = "w8a8"
 
 TARGET_PLATFORMS = {
-    "rv1103", "rv1103b", "rv1106", "rv1106b", "rv1126b",
-    "rk2118", "rk3562", "rk3566", "rk3568", "rk3576", "rk3588"
+    "RV1103", "RV1103b", "RV1106", "RV1106b", "RV1126b",
+    "RK2118", "RK3562", "RK3566", "RK3568", "RK3576", "RK3588"
 }
-DEFAULT_TARGET_PLATFORM = "rk3566"
+DEFAULT_TARGET_PLATFORM = "RK3566"
 
 # Default shapes (Width, Height) if --resolutions is not provided
 DEFAULT_SHAPES = [
