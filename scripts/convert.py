@@ -206,7 +206,10 @@ def main():
             rknn.config(
                 target_platform=target_platform,
                 quantized_dtype=quant_dtype,
-                optimization_level=2
+                optimization_level=3,
+                remove_reshape=True,
+                compress_weight=True,
+                model_pruning=True
             )
             # Config doesn't return a useful value to check
 
