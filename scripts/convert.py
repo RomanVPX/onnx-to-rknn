@@ -20,6 +20,12 @@ OUTPUT_DIR = "/workspace/output_models"
 # w8a16 is forced when `quantize_weight` (which is "about to be deprecated") is set to True
 DEFAULT_QUANT_DTYPE = "w8a8"
 
+TARGET_PLATFORMS = {
+    "rv1103", "rv1103b", "rv1106", "rv1106b", "rv1126b",
+    "rk2118", "rk3562", "rk3566", "rk3568", "rk3576", "rk3588"
+}
+DEFAULT_TARGET_PLATFORM = "rk3566"
+
 # Default shapes (Width, Height) if --resolutions is not provided
 DEFAULT_SHAPES = [
     (1440, 320), (1440, 384), (1440, 404),
@@ -90,6 +96,12 @@ def parse_args():
         help="URL of the ONNX model or local filename (expected in input_models directory)."
     )
     p.add_argument(
+        "--target_platform",
+        default=DEFAULT_TARGET_PLATFORM,
+        choices=TARGET_PLATFORMS,
+        help=f"Target platform for RKNN model. Default: {DEFAULT_TARGET_PLATFORM}."
+    )
+    p.add_argument(
         "--resolutions",
         help="Comma-separated list of target resolutions in WxH format (e.g., '1440x384,1536x512'). Defaults to predefined list if not specified."
     )
@@ -129,6 +141,12 @@ def main():
     args = parse_args()
     onnx_model_path = None
     errors_occurred = False
+
+    # 0. Validate target platform
+    logging.info(f"Target platform: {args.target_platform}")
+    if args.target_platform.lower() not in TARGET_PLATFORMS:
+        logging.error(f"Invalid target platform '{args.target_platform}'. Supported platforms: {TARGET_PLATFORMS}.")
+        sys.exit(1)
 
     # 1. Determine and prepare ONNX model path
     source = args.model_source
@@ -184,7 +202,7 @@ def main():
 
             logging.info("[1/4] Configuring RKNN...")
             rknn.config(
-                target_platform="rk3566",
+                target_platform=args.target_platform,
                 quantized_dtype=quant_dtype,
                 optimization_level=2
             )
@@ -204,7 +222,7 @@ def main():
             if ret != 0: raise RuntimeError(f"RKNN build failed with code {ret}")
             logging.info("RKNN model built successfully.")
 
-            output_filename = f"{base_model_name}_{quant_dtype}_{shape_str}.rknn"
+            output_filename = f"{base_model_name}_{args.target_platform}_{shape_str}.rknn"
             output_path = os.path.join(OUTPUT_DIR, output_filename)
             logging.info(f"[4/4] Exporting RKNN model to: {output_path}")
             ret = rknn.export_rknn(output_path)

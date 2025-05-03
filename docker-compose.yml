@@ -18,8 +18,10 @@ services:
 
     # Example conversion command
     # Add/replace parameters with your own:
-    #  - model_source model URL or local fiile name (should be in ./input_models/)
-    #  - resolutions with your required resolutions (hardcoded defaults are used if not specified)
+    #  --model_source: model URL or local fiile name (should be in ./input_models/)
+    #  --resolutions: with your required resolutions (hardcoded defaults are used if not specified)
+    #  --target_platform: platform to convert for (default: rk3566)
+    #  --verbose or -v: for detailed logs
     command: >
       --model_source Real-ESRGAN-x2plus.onnx
       -v
