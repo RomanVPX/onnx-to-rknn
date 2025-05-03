@@ -101,8 +101,8 @@ jobs:
       - name: Create matrix
         id: set-matrix
         run: |
-          RESOLUTIONS=$(echo "${{ github.event.inputs.target_resolutions }}" | sed 's/,/","/g; s/^/"/; s/$/"/')
-          MATRIX=$(echo "{\"include\":[$(echo $RESOLUTIONS | sed 's/"\(.*\)"/{"resolution":"\1"}/g')]}")
+          MATRIX=$(echo "${{ github.event.inputs.target_resolutions }}" | \
+                  jq -R -c 'split(",") | {"include": map({"resolution": .})}')
           echo "matrix=$MATRIX" >> $GITHUB_OUTPUT
 
   convert:
