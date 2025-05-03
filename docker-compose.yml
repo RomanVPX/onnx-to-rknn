@@ -20,10 +20,8 @@ services:
     # Add/replace parameters with your own:
     #  - model_source model URL or local fiile name (should be in ./input_models/)
     #  - resolutions with your required resolutions (hardcoded defaults are used if not specified)
-    #  - input_name _must_ match the input tensor name in source model
     command: >
       --model_source Real-ESRGAN-x2plus.onnx
-      --input_name input
       -v
 
 # --- How to use ---
@@ -46,13 +44,11 @@ services:
 #    command: >
 #      --model_source https://huggingface.co/qualcomm/Real-ESRGAN-x4plus/resolve/main/Real-ESRGAN-x4plus.onnx
 #      --resolutions 1440x320,1440x384,1440x404
-#      --input_name input
 #
 #    # Real-ESRGAN x2 (1536p)
 #    command: >
 #      --model_source Real-ESRGAN_x2plus.onnx
 #      --resolutions 1536x448,1536x512,1536x576
-#      --input_name input
 
 # 4. Results:
 #    - Converted models will appear in ./output_models/

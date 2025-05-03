@@ -9,9 +9,6 @@ on:
       target_resolutions:
         description: 'Comma-separated list of target resolutions (e.g., 1280x256,1440x384)'
         required: true
-      input_name:
-        description: 'Model input tensor name'
-        default: 'input'
         required: false
       release_tag:
         description: 'Custom release tag (e.g. v1.0)'
@@ -155,7 +152,6 @@ jobs:
             "$FIRST_TAG" \
             --model_source "/workspace/input_models/${{ needs.prepare.outputs.model_filename }}" \
             --resolutions "${{ matrix.resolution }}" \
-            --input_name "${{ github.event.inputs.input_name }}"
 
       - name: Upload converted model
         uses: actions/upload-artifact@v4
@@ -186,7 +182,6 @@ jobs:
           Original ONNX model: [${{ needs.prepare.outputs.model_filename }}](${{ github.event.inputs.onnx_model_url }})
 
           ## Details
-          - Input tensor name: \`${{ github.event.inputs.input_name }}\`
           - Target resolutions: \`${{ github.event.inputs.target_resolutions }}\`
           - Workflow run: [#${{ github.run_number }}](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})
 
