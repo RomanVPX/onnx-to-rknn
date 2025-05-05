@@ -75,27 +75,29 @@ This is useful for testing or converting models locally.
     docker-compose up --build
     ```
     *   `--build` is only needed the first time or if you change `Dockerfile` or `convert.py`.
-    *   Watch the logs. The script will download the model (if needed) and convert it for each specified resolution.
+    *   Watch the logs. The script should download the model (if needed) and convert it for each specified resolution.
 5.  **Find your models:** The generated `.rknn` files will appear in the `./output_models/` directory on your host machine. The filenames will include the target platform and resolution (e.g., `YourModel_rk3566_1440x320.rknn`).
 6.  **Stop the container:**
        ```bash
        docker-compose down
        ```
 
-**Example `command` in `docker-compose.yml`:**
-   _Using a URL and specific resolutions to run on the RK3588 platform:_
-```yaml
-command: >
-   --model_source https://huggingface.co/some_user/some_model/resolve/main/model.onnx
-   --resolutions 1280x256,1024x512
-   --target_platform RK3588
-   --verbose
-```
-_Using a local file and default resolutions:_
-```yaml
-command: >
-   --model_source my_local_esrgan.onnx
-```
+**Examples of `command` in `docker-compose.yml`:**
+
+   - _Using a URL and specific resolutions to run on the RK3588 platform:_
+      ```yaml
+      command: >
+         --model_source https://huggingface.co/some_user/some_model/resolve/main/model.onnx
+         --resolutions 1280x256,1024x512
+         --target_platform RK3588
+         --verbose
+      ```
+
+   - _Using a local file and default resolutions:_
+      ```yaml
+      command: >
+         --model_source my_local_esrgan.onnx
+      ```
 
 ## Troubleshooting / Notes
 
