@@ -6,11 +6,9 @@ A Dockerized tool to convert ONNX models (specifically targeting image upscalers
 
 ## Why Does This Exist? (The Problem)
 
-Converting models for Rockchip NPUs using their official `rknn-toolkit2` is... an experience. Its documentation is a masterpiece of obfuscation, and key features like `dynamic_input` (essential for models that should handle variable input sizes, like image upscalers) are **fundamentally broken** for many (if not all) architectures, often leading to crashes (`Segmentation fault`) or garbage output during inference.
+Converting models for Rockchip NPUs using their official `rknn-toolkit2` is... an experience. Its documentation is a masterpiece of obfuscation, and key features like `dynamic_input` (essential for models that should handle variable input sizes, like image upscalers) are **fundamentally broken** for many (if not all) architectures, leading to crashes (`Segmentation fault`) or garbage output during inference.
 
 After much suffering, apparently the only reliable method found was to generate **separate RKNN models for each specific, fixed input resolution** needed, bypassing the buggy dynamic shape handling. Doing this manually for multiple resolutions is tedious and error-prone.
-
-**TL;DR:** It automates the painful process of creating a set of fixed-resolution RKNN models from a single ONNX file.
 
 ## What It Does (The Solution)
 
@@ -33,7 +31,30 @@ It uses the `rknn-toolkit2` library inside a Docker container with pinned depend
 
 ## How to Use
 
-### 1. Local Conversion (via Docker Compose)
+### 1. GitHub Actions Workflow
+
+This repository includes a reusable GitHub Actions workflow (`.github/workflows/convert.yml`) to automate the process entirely within GitHub.
+
+1.  **Fork** this repository.
+2.  **Go to the "Actions" tab** of your repository fork.
+3.  **Select** the "ONNX to RKNN Conversion" workflow.
+4.  **Click** "Run workflow".
+5.  **Fill in the inputs:**
+      *   `URL of ONNX model to convert`: URL to the source ONNX model.
+      *   `Comma-separated list of target resolutions`: Just like it says
+      *   `Target platform for conversion`: Target Rockchip platform (e.g., `RK3566`, `RK3588`). Default: `RK3566`.
+      *   `Custom release tag`: _(Optional)_ A custom tag for your release. If left empty, the release tag will be `models-<run_id>`
+      *   `Custom release name`: _(Optional)_ A custom name for your release. If left empty, the release name will look like `<source_model_filename> for <target_platform>`
+6.  **Click** "Run workflow".
+7.  **Wait:** The workflow will:
+      *   Build and push the converter Docker image to your repository's GHCR (it will be used as a cache in the next runs).
+      *   Download the ONNX model.
+      *   Run the conversion for each specified resolution in parallel jobs.
+      *   Collect all generated `.rknn` files.
+      *   Create a new GitHub Release tagged `models-<run_id>` containing the `.rknn` files as assets and release notes.
+8.  **Download:** Go to the Releases page of your repository and download the `.rknn` files attached to the newly created release.
+
+### 2. Local Conversion (via Docker Compose)
 
 This is useful for testing or converting models locally.
 
@@ -57,64 +78,24 @@ This is useful for testing or converting models locally.
     *   Watch the logs. The script will download the model (if needed) and convert it for each specified resolution.
 5.  **Find your models:** The generated `.rknn` files will appear in the `./output_models/` directory on your host machine. The filenames will include the target platform and resolution (e.g., `YourModel_rk3566_1440x320.rknn`).
 6.  **Stop the container:**
-    ```bash
-    docker-compose down
-    ```
+       ```bash
+       docker-compose down
+       ```
 
 **Example `command` in `docker-compose.yml`:**
-
+   _Using a URL and specific resolutions to run on the RK388 platform:_
 ```yaml
-    # Example using a URL and specific resolutions to run on the RK388 platform
-    command: >
-      --model_source https://huggingface.co/some_user/some_model/resolve/main/model.onnx
-      --resolutions 1280x256,1024x512
-      --target_platform RK3588
-      --verbose
-
-    # Example using a local file and default resolutions
-    command: >
-      --model_source my_local_esrgan.onnx
+command: >
+   --model_source https://huggingface.co/some_user/some_model/resolve/main/model.onnx
+   --resolutions 1280x256,1024x512
+   --target_platform RK3588
+   --verbose
 ```
-
-### 2. GitHub Actions Workflow
-
-This repository includes a reusable GitHub Actions workflow (`.github/workflows/convert.yml`) to automate the process entirely within GitHub.
-
-1.  **Go to the "Actions" tab** of your repository fork.
-2.  **Select** the "ONNX to RKNN Conversion" workflow.
-3.  **Click** "Run workflow".
-4.  **Fill in the inputs:**
-    *   `URL of ONNX model to convert`: URL to the source ONNX model.
-    *   `Comma-separated list of target resolutions`: Just like it says
-    *   `Target platform for conversion`: Target Rockchip platform (e.g., `RK3566`, `RK3588`). Default: `RK3566`.
-    *   `Custom release tag`: (Optional) A custom tag for your release. If left empty, the release tag will be `models-<run_id>`
-    *   `Custom release name`: (Optional) A custom name for your release. If left empty, the release name will look like `<source_model_filename> for <target_platform>`
-5.  **Click** "Run workflow".
-
-6.  **Wait:** The workflow will:
-   *   Build and push the converter Docker image to your repository's GHCR.
-   *   Download the ONNX model.
-   *   Run the conversion for each specified resolution in parallel jobs.
-   *   Collect all generated `.rknn` files.
-   *   Create a new GitHub Release tagged `models-<run_id>` containing the `.rknn` files as assets and release notes.
-
-7.  **Download:** Go to the Releases page of your repository and download the `.rknn` files attached to the newly created release.
-
-## Configuration (`convert.py` Arguments)
-
-The core conversion logic is in `scripts/convert.py`. It accepts the following arguments (used by both local compose and GitHub Actions):
-
-*   `--model_source`: (Required) URL or local filename of the ONNX model.
-*   `--resolutions`: (Optional) Comma-separated `WxH` list. Uses defaults if omitted.
-*   `--target_platform`: (Optional) Rockchip target (e.g., `RK3566`, `RK3588`). Default: `RK3566`.
-*   `-v`, `--verbose`: (Optional) Enable RKNN verbose logging.
-
-## Files
-
-*   `Dockerfile`: Defines the Docker image with all dependencies for the converter. Uses multi-stage build to keep the final image smaller.
-*   `docker-compose.yml`: Configuration for running the converter locally.
-*   `scripts/convert.py`: The Python script performing the download and conversion logic using `rknn-toolkit2`.
-*   `.github/workflows/convert.yml`: The GitHub Actions workflow definition.
+_Using a local file and default resolutions:_
+```yaml
+command: >
+   --model_source my_local_esrgan.onnx
+```
 
 ## Troubleshooting / Notes
 
