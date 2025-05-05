@@ -22,8 +22,8 @@ It uses the `rknn-toolkit2` library inside a Docker container with pinned depend
 *   **Handles URLs and Local Files:** Provide an HTTP(S) URL or a local filename for the source ONNX model.
 *   **Multiple Resolutions:** Generates **multiple** RKNN models for a list of specified **fixed** input resolutions (e.g., `1440x384`, `1536x512`).
 *   **Automatic Input Name Detection:** Uses the `onnx` library to find the input tensor name automatically.
-*   **Fixed Shape Output:** Generates reliable RKNN models by targeting *fixed* input shapes, avoiding the buggy `dynamic_input` feature of the SDK.
-*   **GitHub Actions Workflow:** Includes a workflow (Check the `.github/workflows` directory) to automatically:
+*   **Fixed Shape Output:** Generates reliable RKNN models by targeting *fixed* input shapes.
+*   **GitHub Actions Workflow:** Includes a workflow to automatically:
     *   Build the converter Docker image (caching layers in GHCR).
     *   Download an ONNX model from a URL.
     *   Convert the model for specified resolutions *in parallel*.
@@ -33,7 +33,7 @@ It uses the `rknn-toolkit2` library inside a Docker container with pinned depend
 
 ### 1. GitHub Actions Workflow
 
-This repository includes a reusable GitHub Actions workflow (`.github/workflows/convert.yml`) to automate the process entirely within GitHub.
+This repository includes a reusable [GitHub Actions workflow](.github/workflows/convert.yml) to automate the process entirely within GitHub.
 
 1.  **Fork** this repository.
 2.  **Go to the "Actions" tab** of your repository fork.
@@ -59,17 +59,17 @@ This repository includes a reusable GitHub Actions workflow (`.github/workflows/
 This is useful for testing or converting models locally.
 
 **Prerequisites:**
-*   Docker and Docker Compose installed.
+- Docker and Docker Compose installed.
 
 **Setup:**
-1.  Clone this repository.
-2.  (Optional) Place your local ONNX model file inside the `./input_models/` directory.
-3.  Edit the `command:` section in `docker-compose.yml` to specify your conversion parameters:
-     *   `--model_source`: Change this to your ONNX model's URL or the **filename** of a model placed in `./input_models/`.
-     *   `--resolutions` (optional): Provide a comma-separated list of `WidthxHeight` resolutions you need (e.g., `"1440x320,1536x576"`). If omitted, it uses a default list defined in the script.
-     *   `--target_platform` (optional): Specify the target chip (e.g., `RK3588`). Defaults to `RK3566`.
-     *   `-v` or `--verbose` (optional): Add this for more detailed logs from `rknn-toolkit2`.
 
+1.  Clone this repository.
+2.  _(Optional)_ Place your local ONNX model file inside the `./input_models/` directory.
+3.  Edit the `command:` section in `docker-compose.yml` to specify your conversion parameters:
+      - `--model_source`: Change this to your ONNX model's URL or the **filename** of a model placed in `./input_models/`.
+      - `--resolutions` (optional): Provide a comma-separated list of `WidthxHeight` resolutions you need (e.g., `"1440x320,1536x576"`). If omitted, it uses a default list defined in the script.
+      - `--target_platform` (optional): Specify the target chip (e.g., `RK3588`). Defaults to `RK3566`.
+      - `-v` or `--verbose` (optional): Add this for more detailed logs from `rknn-toolkit2`.
 4.  **Run the conversion:**
     ```bash
     docker-compose up --build
@@ -83,7 +83,7 @@ This is useful for testing or converting models locally.
        ```
 
 **Example `command` in `docker-compose.yml`:**
-   _Using a URL and specific resolutions to run on the RK388 platform:_
+   _Using a URL and specific resolutions to run on the RK3588 platform:_
 ```yaml
 command: >
    --model_source https://huggingface.co/some_user/some_model/resolve/main/model.onnx
